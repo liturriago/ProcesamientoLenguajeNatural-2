@@ -5,12 +5,12 @@ Frontend: **Streamlit en Codespace**.
 
 ## Contrato con la Clase 10 (no romper)
 
-- Chat: `POST {N8N_CHAT_URL}` default `http://localhost:5678/webhook/agente-logistica-unal`
+- Chat: `POST {N8N_CHAT_URL}` default `http://n8n:5678/webhook/agente-logistica-unal`
 - Payload: `{"sessionId": "<id estable por usuario>", "chatInput": "<pregunta>"}`
 - Respuesta: `[{"output": "..."}]` o `{"output": "..."}`
 - Memoria: `Window Buffer Memory` por `sessionId`. Mismo `sessionId` = misma conversación.
 - Workflow en n8n en `Publish/Active`. Probar antes con:
-  `python "Clase 10/Peticion.py" --url http://localhost:5678/webhook/agente-logistica-unal`
+  `python "Clase 10/Peticion.py" --url http://n8n:5678/webhook/agente-logistica-unal`
 
 ## Cómo correr (estudiante: starter; profesor: referencia)
 
@@ -27,7 +27,7 @@ streamlit run "Clase 11/starter/app.py"           # UI en :8501
 Variables (ver `Clase 11/app/.env.example`, nunca commitear valores reales):
 
 - `N8N_CHAT_URL` (default localhost chat)
-- `N8N_INGEST_URL` (default `http://localhost:5678/webhook/ingesta-reporte-pdf`)
+- `N8N_INGEST_URL` (default `http://n8n:5678/webhook/ingesta-reporte-pdf`)
 
 ## Reglas para agentes
 

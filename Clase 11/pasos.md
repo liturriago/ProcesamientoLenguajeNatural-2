@@ -74,14 +74,14 @@ logs `Editor is ready` / `n8n ready on ::, port 5678`.
 
 ```bash
 cd /workspaces/ProcesamientoLenguajeNatural
-python "Clase 11/Peticion.py" --url http://localhost:5678/webhook/agente-logistica-unal --mensaje "¿Hay osciloscopios?" --session-id paso01
+python "Clase 11/Peticion.py" --url http://n8n:5678/webhook/agente-logistica-unal --mensaje "¿Hay osciloscopios?" --session-id paso01
 ```
 
 - ✅ `Status: 200` + respuesta del agente → sigue al punto 5.
 - ❌ `404` → el workflow no está publicado o usas `/webhook-test/`. Publica y usa `/webhook/`.
-- ❌ `401` con body vacío → usaste la URL `https://...app.github.dev` con el
-  puerto en `Private` desde dentro del Codespace. Repite con
-  `http://localhost:5678/...` tal cual.
+- ❌ `401` con body vacío → usaste la URL `https://...app.github.dev` en código
+  interno. El código usa `http://n8n:5678/...` siempre (`localhost` no llega
+  al contenedor n8n); la URL `https` es solo para el navegador.
 
 ## 5. Starter + juez [terminal-Codespace]
 
@@ -149,7 +149,8 @@ Clase 11/skills/streamlit-chat-ui/SKILL.md.
 Delega: explore verifica el contrato vivo con Peticion.py (Status: 200);
 frontend implementa UNICAMENTE T2 en Clase 11/starter/app.py
 (parse_output, post_chat con timeout 120 y errores 404/401 en espanol,
-send_and_render, pestana Chat con historial + chat_input).
+send_and_render, pestana Chat con historial + chat_input, y warning en el
+sidebar si la URL trae localhost o webhook-test).
 Prohibido: tocar solucion-referencia/, commitear secretos, salirte de starter/,
 implementar T3-T6. Hecho = check.py con cliente chat + chat UI en PASS.
 Evidencia: comando + output pegados en tu resumen.
@@ -165,9 +166,9 @@ Reglas de lanzamiento que aprendimos a golpes:
 ## 7. Supervisa a los subagentes (tú eres el QA, no el teclista) [terminal-Codespace]
 
 - `explore` debe mostrarte `Status: 200` de `Peticion.py` (corre en el mismo
-  Codespace, así que `localhost:5678` sí le responde). Si no lo logra, el
-  problema es n8n (vuelve al punto 4 del paso 1), no el código: detén al
-  orquestador y arregla n8n tú.
+  Codespace, así que usa `http://n8n:5678`). Si no lo logra, el problema es
+  n8n (vuelve al punto 4 del paso 1), no el código: detén al orquestador y
+  arregla n8n tú.
 - `frontend` solo puede tocar `starter/app.py`. Vigila con (en cualquier pestaña):
 ```bash
 git status --short; git diff --stat
@@ -368,7 +369,7 @@ Rol: orquestador de la Clase 11. Ejecuta T7 y T8 de TASKS.md, en orden.
 Lee antes: TASKS T7+T8, AGENTS reglas, skill n8n-webhook-client.
 T7: prueba la rama de ingesta con curl POST JSON {"sessionId","filename","text"}
 a N8N_INGEST_URL y confirma {"ok":true,"summary":...}. Si da 404/401 diagnostica
-(publicado? /webhook/ vs /webhook-test/? localhost vs puerto Public?).
+(publicado? /webhook/ vs /webhook-test/? URL http://n8n:5678?).
 T8: QA final — check.py 9/9, grep de secretos vacio, repaso del checklist SPEC S4.
 Prohibido: cambios funcionales salvo fixes que pida el QA, solucion-referencia/.
 Hecho = 9/9 + grep vacio. Evidencia: comando + output pegados en tu resumen.
@@ -381,7 +382,7 @@ Hecho = 9/9 + grep vacio. Evidencia: comando + output pegados en tu resumen.
 ## 23. Verifica tú, demo y cierre [terminal-Codespace + n8n + Streamlit]
 
 ```bash
-curl -X POST http://localhost:5678/webhook/ingesta-reporte-pdf \
+curl -X POST http://n8n:5678/webhook/ingesta-reporte-pdf \
   -H "Content-Type: application/json" \
   -d '{"sessionId":"demo-01","filename":"prueba.json","text":"Contenido de prueba para verificar la rama de ingesta del workflow."}'
 python "Clase 11/starter/check.py"   # 9/9

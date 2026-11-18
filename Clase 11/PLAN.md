@@ -4,20 +4,25 @@
 
 ```
 [Streamlit :8501] --requests--> [n8n :5678]
-  app/app.py  ── POST localhost:5678/webhook/agente-logistica-unal (JSON chat)
-              ── POST localhost:5678/webhook/ingesta-reporte-pdf (JSON texto PDF)
+  app/app.py  ── POST n8n:5678/webhook/agente-logistica-unal (JSON chat)
+              ── POST n8n:5678/webhook/ingesta-reporte-pdf (JSON texto PDF)
 ```
 
-Streamlit corre en el mismo Codespace que n8n, por eso usa `http://localhost:5678`
-y evita CORS + auth del proxy `*.app.github.dev` (causa del `401` y del
-`Connection lost 1008` vistos en la Clase 10).
+Streamlit corre en el mismo Codespace que n8n, por eso usa `http://n8n:5678`
+(DNS interno de Compose, estable entre reinicios): evita CORS + auth del proxy
+`*.app.github.dev` (causa del `401` y del `Connection lost 1008` vistos en la
+Clase 10). OJO: `localhost:5678` NO sirve desde la terminal del dev container
+(con `docker-outside-of-docker` cada contenedor tiene su propio `localhost`;
+el puerto publicado vive en el host). Regla: navegador → URL `https` de PORTS;
+código dentro del Codespace → `http://n8n:5678`.
 
 ## 2. Decisiones
 
 1. **Interfaz en el mismo Codespace.** Streamlit corre junto a n8n y llama por
-   `http://localhost:5678`, evitando el proxy `*.app.github.dev` (causa del `401`
-   y del `Connection lost 1008` vistos en la Clase 10) y las URLs efímeras por
-   Codespace.
+   `http://n8n:5678` (DNS interno, no `localhost`: con docker-outside-of-docker
+   cada contenedor tiene su propio loopback), evitando el proxy
+   `*.app.github.dev` (causa del `401` y del `Connection lost 1008` vistos en la
+   Clase 10) y las URLs efímeras por Codespace.
 2. **Híbrido n8n: A chat R/W + B ingesta.** El chat JSON ya funciona; mezclarle
    binarios lo rompe. B recibe texto ya extraído (límite 20k chars) y responde resumen.
    La escritura en Sheets es un segundo `ai_tool` en el mismo agente A, no otro workflow,

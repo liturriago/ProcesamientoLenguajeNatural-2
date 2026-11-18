@@ -10,7 +10,7 @@
       los dos activos, el webhook dispara doble).
       en ambos. `pip install -r "Clase 11/starter/requirements.txt"`.
 - [ ] **T1 Contrato vivo.** Verificar `docker compose ps` (n8n Up), workflow A en
-      `Publish`, `POST localhost:5678/webhook/agente-logistica-unal` con
+      `Publish`, `POST n8n:5678/webhook/agente-logistica-unal` con
       `Peticion.py` responde `output`. Evidencia: comando + `Status: 200`.
 - [ ] **T2 Chat + memoria.** En `starter/app.py`: sidebar (`N8N_CHAT_URL`, `session_id`),
       historial en `st.session_state`, parseo `[{output}]/{output}`, timeout 120 s,

@@ -11,8 +11,8 @@ import streamlit as st
 from pypdf import PdfReader
 from fpdf import FPDF
 
-DEFAULT_CHAT = "http://localhost:5678/webhook/agente-logistica-unal"
-DEFAULT_INGEST = "http://localhost:5678/webhook/ingesta-reporte-pdf"
+DEFAULT_CHAT = "http://n8n:5678/webhook/agente-logistica-unal"
+DEFAULT_INGEST = "http://n8n:5678/webhook/ingesta-reporte-pdf"
 
 st.set_page_config(page_title="UNAL Logistica - Agente", layout="wide")
 st.title("Agente de logistica UNAL — Interfaz Clase 11")
@@ -23,6 +23,10 @@ with st.sidebar:
     ingest_url = st.text_input("N8N_INGEST_URL", os.getenv("N8N_INGEST_URL", DEFAULT_INGEST))
     session_id = st.text_input("session_id (memoria)", "demo-01")
     st.caption("Mismo session_id = misma conversacion (Window Buffer Memory).")
+    for _u in (chat_url, ingest_url):
+        if "localhost" in _u or "webhook-test" in _u:
+            st.warning("Esa URL no va a funcionar: usa el host interno http://n8n:5678 y paths /webhook/ (no localhost ni /webhook-test/).")
+            break
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -43,7 +47,7 @@ def post_chat(url, sid, msg):
     if r.status_code == 404:
         raise RuntimeError("404: workflow no publicado o path mal (usa /webhook/, no /webhook-test/).")
     if r.status_code == 401:
-        raise RuntimeError("401: puerto 5678 en Private con URL https. Usa http://localhost:5678/... o pon el puerto en Public.")
+        raise RuntimeError("401: puerto 5678 en Private con URL https. Usa http://n8n:5678/... o pon el puerto en Public.")
     r.raise_for_status()
     try:
         data = r.json()

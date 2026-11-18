@@ -30,9 +30,9 @@ túnel Ngrok (era de la versión anterior con Colab; en Codespaces se usa
 - Request: `{"sessionId": "demo-01", "chatInput": "¿Hay osciloscopios?"}`
 - Response 200: `[{"output": "..."}]` (aceptar también `{"output": "..."}`)
 - Errores: `404` = workflow no publicado o path mal (`/webhook/` vs `/webhook-test/`);
-  `401` con body vacío = se usó URL `https://...app.github.dev` con puerto en
-  `Private` desde dentro del Codespace → usar `http://localhost:5678/...` o poner
-  el puerto en `Public`.
+  `401` con body vacío = se usó la URL `https://...app.github.dev` en código
+  interno. El código usa siempre `http://n8n:5678` (no `localhost`: no llega
+  al contenedor n8n); la URL `https` es solo para el navegador.
 
 ### 3.2 Rama B — ingesta de reporte (mismo workflow, `Clase11 - Agente Logistica UNAL.json`)
 - `POST {N8N_INGEST_URL}` `Content-Type: application/json`

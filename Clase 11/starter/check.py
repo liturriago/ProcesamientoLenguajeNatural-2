@@ -53,7 +53,7 @@ check("requirements (streamlit, requests, pypdf, fpdf2)",
 
 # 9. Contrato vivo (opcional: SKIP sin n8n)
 chat_url = (sys.argv[sys.argv.index("--chat-url") + 1] if "--chat-url" in sys.argv
-            else os.getenv("N8N_CHAT_URL", "http://localhost:5678/webhook/agente-logistica-unal"))
+            else os.getenv("N8N_CHAT_URL", "http://n8n:5678/webhook/agente-logistica-unal"))
 try:
     import requests  # noqa: E402
     r = requests.post(chat_url, json={"sessionId": "check-01", "chatInput": "¿Hay osciloscopios?"},

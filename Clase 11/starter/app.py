@@ -10,8 +10,8 @@ import os
 import requests
 import streamlit as st
 
-DEFAULT_CHAT = "http://localhost:5678/webhook/agente-logistica-unal"
-DEFAULT_INGEST = "http://localhost:5678/webhook/ingesta-reporte-pdf"
+DEFAULT_CHAT = "http://n8n:5678/webhook/agente-logistica-unal"
+DEFAULT_INGEST = "http://n8n:5678/webhook/ingesta-reporte-pdf"
 
 st.set_page_config(page_title="UNAL Logistica - Agente", layout="wide")
 st.title("Agente de logistica UNAL — Interfaz Clase 11")
