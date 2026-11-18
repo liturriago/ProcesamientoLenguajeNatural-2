@@ -221,12 +221,77 @@ with tab_ground:
                     json.dumps(data, ensure_ascii=False, indent=2), language="json"
                 )
 
-    # TODO(T4): formulario ID/Componente/Cantidad/Ubicacion/Estado +
-    #   checkbox "Confirmo" + preview. Sin check NO hay POST.
-    st.info(
-        "TODO T4: formulario de escritura (ID/Componente/Cantidad/Ubicacion/Estado) "
-        "con checkbox de confirmacion aqui."
+    # T4: escritura con confirmacion (SPEC.md S2.3 y S4: preview del payload ANTES
+    # de enviar y sin checkbox no hay POST). Widgets normales, no st.form: el
+    # preview debe actualizarse en vivo con cada cambio.
+    st.divider()
+    st.subheader("Registrar / actualizar inventario")
+    st.caption(
+        "El agente exige el `ID` exacto para actualizar; sin `ID` exacto no borra "
+        "ni sobrescribe nada."
     )
+
+    col_id, col_cantidad = st.columns([2, 1])
+    with col_id:
+        inv_id = st.text_input("ID", key="inv_id", placeholder="ej: INV-001")
+    with col_cantidad:
+        inv_cantidad = st.number_input(
+            "Cantidad", min_value=0, step=1, value=0, key="inv_cantidad"
+        )
+
+    col_componente, col_ubicacion = st.columns(2)
+    with col_componente:
+        inv_componente = st.text_input(
+            "Componente", key="inv_componente", placeholder="ej: Osciloscopio"
+        )
+    with col_ubicacion:
+        inv_ubicacion = st.text_input(
+            "Ubicacion", key="inv_ubicacion", placeholder="ej: Laboratorio 301"
+        )
+
+    inv_estado = st.selectbox(
+        "Estado",
+        ["Disponible", "En uso", "En mantenimiento", "Dado de baja"],
+        key="inv_estado",
+    )
+
+    # Preview en vivo del chatInput: mismo formato que espera el agente.
+    inv_cantidad_int = int(inv_cantidad)
+    preview = (
+        f"Registra: ID={inv_id.strip()} Componente={inv_componente.strip()} "
+        f"Cantidad={inv_cantidad_int} Ubicacion={inv_ubicacion.strip()} "
+        f"Estado={inv_estado}"
+    )
+    st.markdown("**Vista previa del mensaje que se enviara al agente:**")
+    st.code(preview, language="text")
+
+    confirmo = st.checkbox("Confirmo escritura", key="confirmo_escritura")
+    st.caption(
+        "Sin marcar `Confirmo escritura` no se envia nada al agente y no se "
+        "escribe en Google Sheets. El agente exige el `ID` exacto: un ID "
+        "inexistente no actualiza ni borra filas."
+    )
+
+    if st.button("Enviar al agente", key="inv_enviar"):
+        datos_invalidos = (
+            not inv_id.strip()
+            or not inv_componente.strip()
+            or inv_cantidad_int <= 0
+        )
+        if datos_invalidos:
+            # Validacion previa: nunca se llama al webhook con datos incompletos.
+            st.error(
+                "Datos incompletos: `ID` y `Componente` son obligatorios y "
+                "`Cantidad` debe ser mayor que 0. No se envio nada al agente."
+            )
+        elif not confirmo:
+            # Regla dura (SPEC.md S4): sin confirmacion explicita no hay POST.
+            st.warning(
+                "Marca 'Confirmo escritura' para enviar el registro. "
+                "No se envio nada al agente."
+            )
+        else:
+            send_and_render(preview)
 
 with tab_pdf:
     # TODO(T5): file_uploader PDF <=10 MB, extraer con pypdf (skills/pdf-report),
