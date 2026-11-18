@@ -13,6 +13,10 @@ import streamlit as st
 DEFAULT_CHAT = "http://n8n:5678/webhook/agente-logistica-unal"
 DEFAULT_INGEST = "http://n8n:5678/webhook/ingesta-reporte-pdf"
 
+# PLAN.md decision 1 / SPEC.md S3.1: el codigo dentro del Codespace usa siempre el
+# DNS interno de Compose (derivado de DEFAULT_CHAT, sin URL nueva hardcodeada).
+WEBHOOK_HINT = DEFAULT_CHAT.split("/webhook/")[0] + "/webhook/..."
+
 st.set_page_config(page_title="UNAL Logistica - Agente", layout="wide")
 st.title("Agente de logistica UNAL — Interfaz Clase 11")
 
@@ -22,6 +26,16 @@ with st.sidebar:
     ingest_url = st.text_input("N8N_INGEST_URL", os.getenv("N8N_INGEST_URL", DEFAULT_INGEST))
     session_id = st.text_input("session_id (memoria)", "demo-01")
     st.caption("Mismo session_id = misma conversacion (Window Buffer Memory).")
+
+    # T2: aviso visible en el sidebar si alguna URL no sirve desde el Codespace.
+    if any("localhost" in u or "webhook-test" in u for u in (chat_url, ingest_url)):
+        st.warning(
+            "URL invalida dentro del Codespace: usa siempre "
+            f"`{WEBHOOK_HINT}` (DNS interno de Compose). "
+            "`localhost` no llega al contenedor n8n y la ruta `/webhook-test/` "
+            "no esta publicada: el workflow debe estar en `Publish` y el path "
+            "debe ser `/webhook/`. La URL `https` de PORTS es solo para el navegador."
+        )
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -35,16 +49,19 @@ class ChatError(Exception):
 
 # T2: parsear [{"output": ...}] o {"output": ...} a str. Nunca lanza excepcion.
 def parse_output(data):
-    if isinstance(data, list):
-        for item in data:
-            if isinstance(item, dict) and "output" in item:
-                return str(item["output"])
-    elif isinstance(data, dict) and "output" in data:
-        return str(data["output"])
-    # Formato inesperado: mostrar el JSON crudo como texto, sin romper la app.
     try:
-        return json.dumps(data, ensure_ascii=False)
-    except (TypeError, ValueError):
+        if isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict) and "output" in item:
+                    return str(item["output"])
+        elif isinstance(data, dict) and "output" in data:
+            return str(data["output"])
+        # Formato inesperado: mostrar el JSON crudo como texto, sin romper la app.
+        try:
+            return json.dumps(data, ensure_ascii=False)
+        except (TypeError, ValueError):
+            return str(data)
+    except Exception:  # noqa: BLE001 - el parseo jamas debe tumbar la UI
         return str(data)
 
 
@@ -61,24 +78,28 @@ def post_chat(url, sid, msg):
         )
     except requests.exceptions.ConnectionError:
         raise ChatError(
-            "No se pudo conectar con n8n. Revisa `docker compose ps` y que n8n "
-            "este en :5678; la URL debe ser http://localhost:5678/webhook/..."
+            "No se pudo conectar con n8n. Dentro del Codespace la URL debe ser "
+            f"{WEBHOOK_HINT} (no `localhost`: no llega al contenedor n8n). "
+            "Revisa `docker compose ps` (n8n debe estar Up en el puerto 5678) "
+            "y que el workflow siga publicado."
         )
     except requests.exceptions.RequestException as e:
         raise ChatError(
             f"Error de red al llamar a n8n ({e}). Revisa `docker compose ps` "
-            "y que n8n este en :5678."
+            f"y usa {WEBHOOK_HINT} dentro del Codespace."
         )
 
     if r.status_code == 404:
         raise ChatError(
-            "404: publica el workflow en n8n y verifica el path /webhook/ "
-            "(no /webhook-test/). Revisa: docker compose ps"
+            "404: el workflow no esta publicado o el path esta mal. Publica el "
+            "workflow en n8n y usa `/webhook/` (no `/webhook-test/`). "
+            "Revisa: docker compose ps"
         )
     if r.status_code == 401:
         raise ChatError(
-            "401: usa http://localhost:5678/... dentro del Codespace, "
-            "o pon el puerto 5678 en Public."
+            "401: se uso la URL `https://...app.github.dev` en codigo interno, "
+            f"o el puerto 5678 esta en Private. Usa {WEBHOOK_HINT} dentro del "
+            "Codespace; la URL `https` de PORTS es solo para el navegador."
         )
     if r.status_code >= 400:
         extracto = (r.text or "").strip()[:300] or "(body vacio)"
