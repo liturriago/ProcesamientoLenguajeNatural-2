@@ -97,7 +97,7 @@ POST /webhook/agente-logistica-unal
   Con el vocabulario claro, el trabajo se reparte así (ver \texttt{pasos.md}):
   \begin{itemize}
     \item \textbf{Orquestador:} recibe UN prompt por T (con sus archivos de contexto), descompone y delega. No implementa.
-    \item \textbf{\texttt{explore}:} lee la Clase 10 y verifica el contrato vivo (\texttt{Status: 200}). Solo diagnostica.
+    \item \textbf{\texttt{explore}:} lee el contrato en la Clase 11 (SPEC \S 3, heredado de la 10) y lo verifica vivo (\texttt{Status: 200}). Solo diagnostica.
     \item \textbf{\texttt{frontend}:} implementa la T en \texttt{starter/app.py} citando los skills. Solo toca ese archivo.
     \item \textbf{\texttt{qa} + tú:} el juez es \texttt{check.py} y la UI real. El humano commitea: el agente evidencia, el humano certifica.
   \end{itemize}
