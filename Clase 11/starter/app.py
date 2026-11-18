@@ -124,6 +124,86 @@ def post_chat(url, sid, msg):
     return parse_output(_request_chat(url, sid, msg))
 
 
+# T5: limites del contrato de ingesta (SPEC.md S2.4 y S3.2).
+MAX_PDF_BYTES = 10 * 1024 * 1024
+MAX_INGEST_CHARS = 20000
+PREVIEW_CHARS = 1000
+
+
+class IngestError(Exception):
+    """Fallo al subir el PDF al Workflow B; el mensaje ya viene para la UI."""
+
+
+# T5: parseo en Streamlit (SPEC.md S3.2: el workflow B NO recibe binarios).
+# Devuelve (texto, truncado); sube solo texto y nunca el archivo.
+def extract_pdf_text(uploaded):
+    from pypdf import PdfReader
+
+    try:
+        uploaded.seek(0)
+        reader = PdfReader(uploaded)
+        paginas = [page.extract_text() or "" for page in reader.pages]
+    except Exception as e:  # noqa: BLE001 - PDF corrupto: avisar, no tumbar la UI
+        raise IngestError(
+            f"No se pudo leer el PDF ({e}). Verifica que no este corrupto ni "
+            "protegido con contrasena."
+        )
+    texto = "\n".join(paginas).strip()
+    truncado = len(texto) > MAX_INGEST_CHARS
+    return texto[:MAX_INGEST_CHARS], truncado
+
+
+# T5: POST {"sessionId","filename","text"} al Workflow B, timeout 120.
+# Devuelve el JSON crudo (dict esperado) para renderizar summary + JSON crudo.
+def post_ingest(url, sid, filename, text):
+    payload = {"sessionId": sid, "filename": filename, "text": text}
+    try:
+        r = requests.post(url, json=payload, timeout=120)
+    except requests.exceptions.Timeout:
+        raise IngestError(
+            "Timeout de 120 s esperando a n8n. Revisa `docker compose ps` "
+            "(n8n debe estar Up en el puerto 5678) y que el workflow de ingesta "
+            "siga publicado."
+        )
+    except requests.exceptions.ConnectionError:
+        raise IngestError(
+            "No se pudo conectar con n8n. Dentro del Codespace la URL debe ser "
+            f"{WEBHOOK_HINT} (no `localhost`: no llega al contenedor n8n). "
+            "Revisa `docker compose ps` (n8n debe estar Up en el puerto 5678)."
+        )
+    except requests.exceptions.RequestException as e:
+        raise IngestError(
+            f"Error de red al llamar a n8n ({e}). Revisa `docker compose ps` "
+            f"y usa {WEBHOOK_HINT} dentro del Codespace."
+        )
+
+    if r.status_code == 404:
+        raise IngestError(
+            "404: el workflow no esta publicado o el path esta mal. Publica el "
+            "workflow en n8n y usa `/webhook/` (no `/webhook-test/`). "
+            "Revisa: docker compose ps"
+        )
+    if r.status_code == 401:
+        raise IngestError(
+            "401: se uso la URL `https://...app.github.dev` en codigo interno, "
+            f"o el puerto 5678 esta en Private. Usa {WEBHOOK_HINT} dentro del "
+            "Codespace; la URL `https` de PORTS es solo para el navegador."
+        )
+    if r.status_code >= 400:
+        extracto = (r.text or "").strip()[:300] or "(body vacio)"
+        raise IngestError(
+            f"{r.status_code}: n8n respondio con error. Extracto del body: {extracto}"
+        )
+
+    try:
+        return r.json()
+    except ValueError:
+        raise IngestError(
+            "200 pero la respuesta no es JSON. Extracto del body: "
+            f"{(r.text or '').strip()[:300] or '(vacio)'}"
+        )
+
+
 # T2: append user, chat_message, spinner, append assistant, render.
 def send_and_render(prompt):
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -294,9 +374,108 @@ with tab_ground:
             send_and_render(preview)
 
 with tab_pdf:
-    # TODO(T5): file_uploader PDF <=10 MB, extraer con pypdf (skills/pdf-report),
-    #   preview 1000 chars, POST {"sessionId","filename","text"} al Workflow B.
-    st.info("TODO T5: subida e ingesta de PDF aqui.")
+    # T5: subida + ingesta de PDF (SPEC.md S2.4, S3.2; skills/pdf-report y
+    # n8n-webhook-client). El parseo ocurre aqui y a n8n solo viaja texto.
+    st.subheader("Subir PDF")
+    st.markdown(
+        "Sube un PDF con texto: la app extrae el contenido con `pypdf` y envia "
+        "**solo el texto** al Workflow B de n8n, que devuelve un `summary`."
+    )
+    st.caption(
+        "Limite 10 MB. Maximo 20000 caracteres por envio (contrato de ingesta). "
+        "No se envian binarios: el workflow B no recibe el archivo."
+    )
+
+    uploaded = st.file_uploader(
+        "Sube un PDF (max 10 MB)", type=["pdf"], key="ingest_pdf"
+    )
+
+    if uploaded is None:
+        st.caption("Sin archivo todavia. Sube un PDF para ver la vista previa.")
+    elif uploaded.size > MAX_PDF_BYTES:
+        st.error(
+            f"El PDF supera 10 MB ({uploaded.size / (1024 * 1024):.1f} MB). "
+            "Sube un archivo mas liviano: no se extrajo ni se envio nada."
+        )
+    else:
+        st.caption(
+            f"Archivo: `{uploaded.name}` ({uploaded.size / 1024:.1f} KB)."
+        )
+        texto = None
+        truncado = False
+        try:
+            with st.spinner("Extrayendo texto del PDF..."):
+                texto, truncado = extract_pdf_text(uploaded)
+        except IngestError as e:
+            st.error(str(e))
+        except Exception as e:  # noqa: BLE001 - un PDF raro no debe tumbar la UI
+            st.error(f"Error inesperado al extraer el texto del PDF: {e}")
+
+        if texto is not None and not texto:
+            # PDF escaneado (solo imagenes): no hay texto que enviar.
+            st.warning(
+                "El PDF no contiene texto extraible: parece escaneado (solo "
+                "imagenes). Sube un PDF con texto o pasalo antes por OCR. "
+                "No se envio nada a n8n."
+            )
+        elif texto:
+            st.caption(
+                f"{len(texto)} caracteres listos para enviar. "
+                "Revisa la vista previa antes de confirmar."
+            )
+            if truncado:
+                st.caption(
+                    "El PDF tiene mas de 20000 caracteres: se enviaran solo los "
+                    "primeros 20000 (limite del contrato de ingesta)."
+                )
+
+            with st.expander("Vista previa del texto (1000 caracteres)"):
+                st.text(texto[:PREVIEW_CHARS])
+
+            st.caption(
+                "Un solo POST por clic. Nada se envia hasta que pulses el boton."
+            )
+            if st.button("Enviar texto a n8n", key="ingest_enviar"):
+                try:
+                    with st.spinner("Enviando texto a n8n..."):
+                        data = post_ingest(
+                            ingest_url, session_id, uploaded.name, texto
+                        )
+                except IngestError as e:
+                    st.error(str(e))
+                except Exception as e:  # noqa: BLE001 - el POST no debe tumbar la UI
+                    st.error(f"Error inesperado al enviar la ingesta a n8n: {e}")
+                else:
+                    if isinstance(data, dict):
+                        if data.get("ok") is False:
+                            st.warning(
+                                "El workflow respondio con `ok: false`: no se "
+                                "confirmo la ingesta del PDF."
+                            )
+                        resumen = str(data.get("summary") or "").strip()
+                        nombre = str(data.get("filename") or uploaded.name)
+                        chars = data.get("chars", len(texto))
+                        st.success(
+                            f"Ingesta completada: `{nombre}` ({chars} caracteres)."
+                        )
+                        if resumen:
+                            st.markdown("**Resumen del agente:**")
+                            st.markdown(resumen)
+                            st.session_state.last_summary = resumen
+                        else:
+                            st.caption(
+                                "El workflow no devolvio `summary` en la respuesta."
+                            )
+                    else:
+                        st.warning(
+                            "La respuesta de n8n no tiene el formato esperado "
+                            "`{ok, filename, summary, chars}`. Revisa el JSON crudo."
+                        )
+                    with st.expander("JSON crudo"):
+                        st.code(
+                            json.dumps(data, ensure_ascii=False, indent=2),
+                            language="json",
+                        )
 
 with tab_report:
     # TODO(T6): armar PDF con fpdf2 (sesion, fecha, intercambios, ultimo summary)
