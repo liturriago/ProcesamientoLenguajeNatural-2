@@ -4,15 +4,15 @@
 > `solucion-referencia/` es del profesor: mirarla invalida el ejercicio.
 > `python "Clase 11/starter/check.py"` es el juez: arranca en 3/9 y debe llegar a 9/9.
 
-- [ ] **T0 Fork + starter.** Fork propio, Codespace propio, `docker compose up -d`,
+- [x] **T0 Fork + starter.** Fork propio, Codespace propio, `docker compose up -d`,
       importar `Clase11 - Agente Logistica UNAL.json` (las 2 ramas), `Publish`,
       y desactivar el workflow de la Clase 10 (mismo path de chat: si quedan
       los dos activos, el webhook dispara doble).
       en ambos. `pip install -r "Clase 11/starter/requirements.txt"`.
-- [ ] **T1 Contrato vivo.** Verificar `docker compose ps` (n8n Up), workflow A en
+- [x] **T1 Contrato vivo.** Verificar `docker compose ps` (n8n Up), workflow A en
       `Publish`, `POST n8n:5678/webhook/agente-logistica-unal` con
       `Peticion.py` responde `output`. Evidencia: comando + `Status: 200`.
-- [ ] **T2 Chat + memoria.** En `starter/app.py`: sidebar (`N8N_CHAT_URL`, `session_id`),
+- [x] **T2 Chat + memoria.** En `starter/app.py`: sidebar (`N8N_CHAT_URL`, `session_id`),
       historial en `st.session_state`, parseo `[{output}]/{output}`, timeout 120 s,
       estados vacío/error. Evidencia: `check.py` suma cliente+chat UI + 2 turnos mismo `sessionId`.
 - [ ] **T3 Panel grounding.** Botones `Osciloscopios / Raspberry Pi / Clima Manizales`
