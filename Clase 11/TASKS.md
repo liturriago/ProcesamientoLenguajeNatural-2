@@ -27,9 +27,9 @@
       render de `summary`. Probar con `poema_test.pdf` y `reporte_planta.pdf`.
 - [x] **T6 Generar reporte.** Botón que arma PDF con `fpdf2` (sesión, fecha, intercambios,
       último resumen) y `download_button`. Evidencia: PDF descargado con ≥1 intercambio.
-- [ ] **T7 Rama de ingesta.** Probar la rama B del mismo workflow (ya importado
+- [x] **T7 Rama de ingesta.** Probar la rama B del mismo workflow (ya importado
       en T0) con `curl` JSON `{"sessionId","filename","text"}` → `{"ok":true,"summary":...}`.
-- [ ] **T8 QA + demo.** `check.py` 9/9, `grep` de secretos vacío, T2–T6 contra
+- [x] **T8 QA + demo.** `check.py` 9/9, `grep` de secretos vacío, T2–T6 contra
       n8n real, demo en vivo (chat con memoria, escritura con/sin check, ingesta,
       reporte). Evidencia: checklist SPEC §4 en verde.
 
