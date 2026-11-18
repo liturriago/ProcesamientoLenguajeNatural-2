@@ -73,22 +73,33 @@ POST /webhook/agente-logistica-unal
   \end{itemize}
 \end{frame}
 
-\begin{frame}[fragile]{Spec-Driven Development}
+\begin{frame}{Spec-Driven Development: el documento manda}
   Invertimos el orden clásico: primero se escribe \textbf{qué}, el código viene después.
-  \begin{enumerate}
-    \item \texttt{SPEC.md}: historias de usuario y criterios de aceptación (chat+memoria, grounding visible, escritura con confirmación, subir/generar PDF).
-    \item \texttt{PLAN.md}: arquitectura y decisiones (Streamlit en Codespace, híbrido A R/W + B ingesta, PDFs en el cliente).
-    \item \texttt{TASKS.md}: T1--T8, una tarea = un cambio + evidencia (comando + output).
-  \end{enumerate}
-  Si el código contradice al SPEC, se cambia el código. El SPEC es el test.
+  \begin{itemize}
+    \item Nada se implementa sin estar escrito antes en un SPEC.
+    \item Cada decisión de arquitectura queda registrada con su porqué (no en la cabeza de nadie).
+    \item El trabajo se parte en tareas pequeñas, cada una con evidencia de terminación.
+    \item Si el código contradice al SPEC, se cambia el código. El SPEC es el test.
+  \end{itemize}
+  En esta clase el SPEC vive en cuatro archivos que ya existen en el repo.
 \end{frame}
 
-\begin{frame}{Orquestador, subagentes y skills}
+\begin{frame}{El vocabulario mínimo: SPEC, TASK, SKILL}
   \begin{itemize}
-    \item \textbf{Orquestador:} descompone y delega, no implementa todo de golpe.
-    \item \textbf{Subagentes:} \texttt{explore} (lee la 10 y verifica el contrato vivo), \texttt{frontend} (implementa \texttt{app.py}), \texttt{qa} (prueba contra n8n real).
-    \item \textbf{Skills} (\texttt{Clase 11/skills/*/SKILL.md}): contexto reutilizable --- \texttt{n8n-webhook-client}, \texttt{streamlit-chat-ui}, \texttt{pdf-report}. Se citan, no se duplican.
-    \item \texttt{AGENTS.md}: instrucciones del repo que todo agente lee (cómo correr, no subir keys, definición de hecho).
+    \item \textbf{SPEC} (\texttt{SPEC.md}): \textit{qué} debe hacer el sistema. Historias de usuario + criterios de aceptación medibles. Ej.: \textit{``subir PDF $\le$10 MB devuelve \texttt{summary}''} --- o pasa o no pasa, sin opiniones.
+    \item \textbf{TASK} (\texttt{TASKS.md}: T0--T8): \textit{un} paso de trabajo con definición de hecho. Formato fijo: hacer, evidencia (comando + output), commit. Una TASK = un cambio; si algo falla, se sabe exactamente cuál.
+    \item \textbf{SKILL} (\texttt{skills/*/SKILL.md}): \textit{cómo} se hace algo, empaquetado para reutilizar. No es código: es contexto (contratos, ejemplos, errores típicos). Ej.: \texttt{n8n-webhook-client} enseña a parsear \texttt{[\{output\}] vs \{output\}} y a diagnosticar 404/401.
+    \item \texttt{AGENTS.md}: las reglas del repo que todo agente lee primero (cómo correr, no subir keys, qué significa ``hecho'').
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Orquestador y subagentes en acción}
+  Con el vocabulario claro, el trabajo se reparte así (ver \texttt{pasos.md}):
+  \begin{itemize}
+    \item \textbf{Orquestador:} recibe UN prompt por T (con sus archivos de contexto), descompone y delega. No implementa.
+    \item \textbf{\texttt{explore}:} lee la Clase 10 y verifica el contrato vivo (\texttt{Status: 200}). Solo diagnostica.
+    \item \textbf{\texttt{frontend}:} implementa la T en \texttt{starter/app.py} citando los skills. Solo toca ese archivo.
+    \item \textbf{\texttt{qa} + tú:} el juez es \texttt{check.py} y la UI real. El humano commitea: el agente evidencia, el humano certifica.
   \end{itemize}
 \end{frame}
 
