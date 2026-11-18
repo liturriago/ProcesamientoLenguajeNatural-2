@@ -15,17 +15,17 @@
 - [x] **T2 Chat + memoria.** En `starter/app.py`: sidebar (`N8N_CHAT_URL`, `session_id`),
       historial en `st.session_state`, parseo `[{output}]/{output}`, timeout 120 s,
       estados vacío/error. Evidencia: `check.py` suma cliente+chat UI + 2 turnos mismo `sessionId`.
-- [ ] **T3 Panel grounding.** Botones `Osciloscopios / Raspberry Pi / Clima Manizales`
+- [x] **T3 Panel grounding.** Botones `Osciloscopios / Raspberry Pi / Clima Manizales`
       que envían el `chatInput` correspondiente y muestran respuesta + JSON crudo
       colapsable. Evidencia: 3 respuestas reales.
-- [ ] **T4 Escritura con confirmación.** Formulario `ID/Componente/Cantidad/Ubicacion/Estado`
+- [x] **T4 Escritura con confirmación.** Formulario `ID/Componente/Cantidad/Ubicacion/Estado`
       + checkbox `Confirmo` + preview del `chatInput` generado
       (`Registra: ID=... Componente=...`). Sin check no hay POST. Documentar alta del
       tool `Inventario_Write` en n8n. Evidencia: ejecución que devuelve confirmación.
-- [ ] **T5 Subir PDF.** `file_uploader` PDF ≤10 MB, extracción con `pypdf`, preview
+- [x] **T5 Subir PDF.** `file_uploader` PDF ≤10 MB, extracción con `pypdf`, preview
       1000 chars, `POST {N8N_INGEST_URL}` con `{"sessionId","filename","text"}`,
       render de `summary`. Probar con `poema_test.pdf` y `reporte_planta.pdf`.
-- [ ] **T6 Generar reporte.** Botón que arma PDF con `fpdf2` (sesión, fecha, intercambios,
+- [x] **T6 Generar reporte.** Botón que arma PDF con `fpdf2` (sesión, fecha, intercambios,
       último resumen) y `download_button`. Evidencia: PDF descargado con ≥1 intercambio.
 - [ ] **T7 Rama de ingesta.** Probar la rama B del mismo workflow (ya importado
       en T0) con `curl` JSON `{"sessionId","filename","text"}` → `{"ok":true,"summary":...}`.

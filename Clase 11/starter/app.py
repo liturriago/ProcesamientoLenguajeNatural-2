@@ -6,6 +6,7 @@ y NO se puede copiar: la nota esta en tu demo en vivo + check.py en verde.
 """
 import json
 import os
+from datetime import datetime
 
 import requests
 import streamlit as st
@@ -226,6 +227,110 @@ def send_and_render(prompt):
     st.session_state.messages.append({"role": "assistant", "content": salida})
     with st.chat_message("assistant"):
         st.markdown(salida)
+
+
+# T6: el PDF se arma en la app, n8n solo razona y persiste (AGENTS.md regla 4;
+# SPEC.md S2.5 y S4; skills/pdf-report seccion "Generar").
+REPORT_TITLE = "Reporte de sesion - Agente de logistica UNAL"
+
+
+def _report_text(valor):
+    """Helvetica solo cubre latin-1: emojis/—/ñ se reemplazan, nunca lanzan."""
+    return (
+        str(valor if valor is not None else "")
+        .encode("latin-1", "replace")
+        .decode("latin-1")
+    )
+
+
+def build_report_pdf(session_id, messages, last_summary):
+    """Devuelve el PDF del reporte como bytes (portada + historial + summary)."""
+    from fpdf import FPDF
+
+    pdf = FPDF(format="A4")
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    # Portada: titulo, sesion y fecha/hora local.
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.multi_cell(0, 10, _report_text(REPORT_TITLE), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(6)
+    pdf.set_font("Helvetica", "", 12)
+    pdf.multi_cell(
+        0,
+        8,
+        _report_text(f"Session ID: {session_id}"),
+        new_x="LMARGIN",
+        new_y="NEXT",
+    )
+    pdf.multi_cell(
+        0,
+        8,
+        _report_text(f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}"),
+        new_x="LMARGIN",
+        new_y="NEXT",
+    )
+    pdf.multi_cell(
+        0,
+        8,
+        _report_text(f"Mensajes en el historial: {len(messages)}"),
+        new_x="LMARGIN",
+        new_y="NEXT",
+    )
+
+    if not messages:
+        # La UI ya bloquea este caso; el helper tampoco debe fallar.
+        pdf.ln(4)
+        pdf.multi_cell(
+            0,
+            8,
+            _report_text("Sin intercambios registrados en esta sesion."),
+            new_x="LMARGIN",
+            new_y="NEXT",
+        )
+    else:
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.multi_cell(0, 9, "Conversacion", new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(2)
+
+        # Una seccion por mensaje: etiqueta en negrita + contenido con multi_cell
+        # (fpdf2 salta de pagina solo cuando el texto no cabe).
+        for numero, mensaje in enumerate(messages, start=1):
+            if isinstance(mensaje, dict):
+                rol = mensaje.get("role")
+                contenido = mensaje.get("content")
+            else:
+                rol, contenido = None, mensaje
+            etiqueta = "usuario:" if rol == "user" else "agente:"
+            texto = _report_text(contenido).strip() or "(vacio)"
+
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.multi_cell(
+                0,
+                8,
+                _report_text(f"{numero}. {etiqueta}"),
+                new_x="LMARGIN",
+                new_y="NEXT",
+            )
+            pdf.set_font("Helvetica", "", 11)
+            pdf.multi_cell(0, 8, texto, new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(3)
+
+    resumen = _report_text(last_summary).strip()
+    if resumen:
+        # Cierre: ultimo summary devuelto por el Workflow B (si existe).
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.multi_cell(
+            0, 9, "Ultimo resumen de ingesta", new_x="LMARGIN", new_y="NEXT"
+        )
+        pdf.ln(2)
+        pdf.set_font("Helvetica", "", 11)
+        pdf.multi_cell(0, 8, resumen, new_x="LMARGIN", new_y="NEXT")
+
+    # fpdf2 2.9: output() devuelve bytearray; el download_button pide bytes.
+    return bytes(pdf.output())
 
 
 tab_chat, tab_ground, tab_pdf, tab_report = st.tabs(
@@ -478,6 +583,84 @@ with tab_pdf:
                         )
 
 with tab_report:
-    # TODO(T6): armar PDF con fpdf2 (sesion, fecha, intercambios, ultimo summary)
-    #   y download_button.
-    st.info("TODO T6: generacion y descarga del reporte aqui.")
+    # T6: reporte PDF con fpdf2 generado en la app (SPEC.md S2.5 y S4;
+    # skills/pdf-report seccion "Generar"). El PDF se guarda en session_state
+    # para que el download_button siga visible despues de un rerun.
+    st.subheader("Generar reporte")
+    total_mensajes = len(st.session_state.messages)
+    st.caption(
+        f"Sesion actual: `{session_id}` — {total_mensajes} mensajes en el "
+        "historial (usuario + agente)."
+    )
+    st.markdown(
+        "El PDF incluye portada (sesion y fecha/hora), una seccion por "
+        "intercambio y el ultimo resumen de ingesta, si existe."
+    )
+
+    if st.button("Generar reporte", key="report_generar"):
+        if not st.session_state.messages:
+            # Estado vacio: sin intercambios no hay nada que reportar.
+            st.warning(
+                "Aun no hay intercambios: chatea primero (o usa los atajos de "
+                "grounding) y despues genera el reporte."
+            )
+        else:
+            try:
+                with st.spinner("Construyendo el PDF del reporte..."):
+                    pdf_generado = build_report_pdf(
+                        session_id,
+                        list(st.session_state.messages),
+                        st.session_state.last_summary,
+                    )
+            except Exception as e:  # noqa: BLE001 - un PDF no debe tumbar la UI
+                # Sin PDF a medias: se descarta el anterior para no ofrecer un
+                # archivo que no corresponde a este clic.
+                st.session_state.pop("report_pdf", None)
+                st.session_state.pop("report_pdf_name", None)
+                st.session_state.pop("report_pdf_meta", None)
+                st.error(
+                    "No se pudo generar el reporte: "
+                    f"{e}. Revisa que `fpdf2` este instalado "
+                    "(`pip install -r requirements.txt`) e intenta de nuevo."
+                )
+            else:
+                st.session_state.report_pdf = pdf_generado
+                st.session_state.report_pdf_name = "reporte.pdf"
+                st.session_state.report_pdf_meta = {
+                    "session_id": session_id,
+                    "mensajes": total_mensajes,
+                    "hora": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                }
+
+    if "report_pdf" in st.session_state:
+        pdf_bytes = st.session_state.report_pdf
+        nombre_reporte = st.session_state.get("report_pdf_name", "reporte.pdf")
+        meta = st.session_state.get("report_pdf_meta") or {}
+
+        st.success(
+            f"Reporte listo: {len(pdf_bytes) / 1024:.1f} KB "
+            f"({meta.get('mensajes', total_mensajes)} mensajes, generado "
+            f"{meta.get('hora', 'ahora')})."
+        )
+        if meta and (
+            meta.get("session_id") != session_id
+            or meta.get("mensajes") != total_mensajes
+        ):
+            st.caption(
+                "Ojo: el historial o la sesion cambiaron despues de generar el "
+                "PDF. Pulsa 'Generar reporte' otra vez para actualizarlo."
+            )
+
+        st.download_button(
+            "Descargar reporte.pdf",
+            data=pdf_bytes,
+            file_name=nombre_reporte,
+            mime="application/pdf",
+            key="report_descargar",
+        )
+    else:
+        st.caption(
+            "Sin reporte generado todavia. El boton se habilita cuando exista "
+            "al menos un intercambio en el chat."
+        )
+
